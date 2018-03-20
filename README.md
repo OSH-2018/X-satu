@@ -9,6 +9,6 @@ Its many features include:
 
 SatuFS depends on:
 
-1. Python 3
+1. Python 3.5 and higher
 2. [fusepy](https://github.com/fusepy/fusepy)
 
