@@ -5,11 +5,13 @@ import sys
 import errno
 import argparse
 
-# FIXME: 'fusepy' is supposed to be 'fuse'; determine if the host is Debian!
-from fusepy import FUSE, FuseOSError, Operations
+try:
+    from fuse import FUSE, FuseOSError, Operations
+except ImportError:
+    from fusepy import FUSE, FuseOSError, Operations
 
 
-class Satu(Operations):
+class SatuOperations(Operations):
     def __init__(self):
         pass
 
@@ -85,11 +87,11 @@ class Satu(Operations):
 
 
 def main(mountpoint):
-    # FIXME: confirm these options are relevant
-    FUSE(Satu(), mountpoint, nothreads=True, foreground=True)
+    # TODO: confirm these options are relevant
+    FUSE(SatuOperations(), mountpoint, nothreads=True, foreground=True)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Mount a SatuFS")
-    parser.add_argument('mountpoint', metavar='mountpoint')
+    parser.add_argument('mountpoint')
     args = parser.parse_args()
     main(args.mountpoint)
