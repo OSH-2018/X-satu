@@ -145,9 +145,9 @@ struct metadata {
 \begin{enumerate}
 \item rev 是元数据块的更新版本。
 \item checksum 是元数据块的校验和，用于检测异常情况。
-\item file_type 是文件类型，可取 F（一半文件） / WS（可写流） / RS（可读流） / MQ（消
+\item file\_type 是文件类型，可取 F（一半文件） / WS（可写流） / RS（可读流） / MQ（消
   息管道）三类。
-\item storage_type 是存储的类型，可取前向链表、后向链表和连续存储。
+\item storage\_type 是存储的类型，可取前向链表、后向链表和连续存储。
 \item ptr 是指向数据块的指针。若为前向链表，指向头节点；若为后向链表，指向尾节点；
   若为连续存储，指向首字节。
 \item length 是文件大小，或缓冲区占用大小。
@@ -182,9 +182,9 @@ struct contiguous {
 每次修改文件数据时，首先找到空闲块将修改过的数据写入其中，然后原子地更新元数据。
 这样可以保证无论发生什么，总有一份可用的数据。
 
-默认情况下，文件使用 fwd_block，管道缓冲区使用连续存储。
+默认情况下，文件使用 fwd\_block，管道缓冲区使用连续存储。
 
-fwd_block 和 back_block 分配新块时，总是从前向后扫描，而连续存储从后向前扫描。
+fwd\_block 和 back\_block 分配新块时，总是从前向后扫描，而连续存储从后向前扫描。
 
 \subsection{应用程序编程接口}
 \label{design-api}
