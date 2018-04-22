@@ -39,8 +39,6 @@ CAP定理（CAP theorem），又被称作布鲁尔定理（Brewer's theorem）�
 
 以上的每一种性能指标，都有对应的优化方法，例如读写速度可以通过RAID0来提高，可靠性可以通过RAID1来提高等。
 
-（是否要继续增加内容？）
-
 （参考文献：https://www.quora.com/Whats-the-difference-between-Reliability-Durability-and-Availability-for-data-storage-system, https://en.wikipedia.org/wiki/Mean_time_between_failures）
 
 \subsection{技术依据}
@@ -78,6 +76,18 @@ RIOT 调度的基本单位是线程，提供抢占式（半协作式）调度方
 \verb|thread_yield| 交还 CPU 时间。
 
 综上所述，RIOT 为本项目开展提供了极大方便，使得我们无需自己实现这些基础性功能，而是专注于项目本身的创新和设计。
+
+\subsubsection{中心节点（server）的结构设计}
+
+本项目的中心节点主要的任务是作为一个文件服务器（file server），存储由各端点分享的文件，并使之在所有端点可用。它本身不需要执行计算任务或对数据做处理，只要作为一个系统的数据中心即可。当某端点需要来自另一端点的文件时可以通过它获取到，而当用户访问系统时，可以在中心节点得到整理后的所有端点数据，这就是我们想让中心节点做的事情。
+
+文件服务器的设计要考虑诸多因素，例如存储容量、访问速度、可恢复性、易管理性、安全性和预算等。除此之外，存储系统是文件服务器的重要部分，所以还要考虑存储系统的性能指标（读写性能、可靠性、耐久性等）。\footnote{这其中部分指标有重叠，例如服务器的可恢复性和存储系统的可靠性。}
+
+在设计文件服务器时，可以参考NAS（Network-attached storage），两者的区别在于NAS一般是定制化的设备，且专门用于联网存储数据而没有更一般的计算功能。NAS的结构简单来说就是控制+存储，其中存储部分即一个存储系统，常用RAID；控制部分需要在设备上实现网络传输协议软件，可以有基于计算机、嵌入式设备和ASIC等多种实现。这三种实现的系统功耗和性能都由高到低排列，这里的性能主要反映在读写速度上。
+
+我们初步的设想是实现基于计算机的文件服务器。这样做有两个好处：第一，PC作为中心节点的控制中枢使我们能够方便地访问中心节点，便于系统的测试与管理，让我们能聚焦于优化端点的存储与传输性能，免于花过多时间纠结在中心节点的访问上，这不是我们项目的关键所在；第二，PC的性能冗余使我们可以考虑为文件服务器增加更多功能，丰富项目的应用场景。事实上，实现数据在移动端的访问与管理，以及为文件服务器增加更多实用功能是本项目的两个重要的拓展方向。
+
+（参考文献：https://en.wikipedia.org/wiki/Server_(computing), https://en.wikipedia.org/wiki/File_server, https://en.wikipedia.org/wiki/Communications_server, https://en.wikipedia.org/wiki/Network-attached_storage）
 
 \subsection{创新点}
 
