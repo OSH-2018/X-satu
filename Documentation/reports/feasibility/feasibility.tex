@@ -41,7 +41,6 @@ CAP定理（CAP theorem），又被称作布鲁尔定理（Brewer's theorem）�
 
 （是否要继续增加内容？）
 
-（参考文献：https://www.quora.com/Whats-the-difference-between-Reliability-Durability-and-Availability-for-data-storage-system, https://en.wikipedia.org/wiki/Mean_time_between_failures）
 
 \subsection{技术依据}
 \subsubsection{RIOT OS}
@@ -125,13 +124,67 @@ RIOT 调度的基本单位是线程，提供抢占式（半协作式）调度方
 
 \subsection{文件系统设计}
 \label{design-fs}
-本项目的基础是文件系统，设计主要取自 LittleFS，但删除了目录，因为目录在本项目目标使用场景中用处不大，反而大大复杂化了文件系统的设计。
+本项目的基础是文件系统，设计主要取自 LittleFS，但删除了目录，因为目录在本项目目
+标使用场景中用处不大，反而大大复杂化了文件系统的设计。
 
-\subsubsection{元数据的原子操作}
-（施工中）
+\subsubsection{元数据}
+\begin{verbatim}
+struct metadata {
+  char rev;
+  char checksum;
+  char file_type;
+  char storage_type;
+  void *ptr;
+  long length;
+  void *next;
+  char filename[MAX_FILENAME];
+  char info[MAX_BLOCK - MAX_FILENAME - OTHER_FIELDS_LEN];
+};
+\end{verbatim}
+
+\begin{enumerate}
+\item rev 是元数据块的更新版本。
+\item checksum 是元数据块的校验和，用于检测异常情况。
+\item file_type 是文件类型，可取 F（一半文件） / WS（可写流） / RS（可读流） / MQ（消
+  息管道）三类。
+\item storage_type 是存储的类型，可取前向链表、后向链表和连续存储。
+\item ptr 是指向数据块的指针。若为前向链表，指向头节点；若为后向链表，指向尾节点；
+  若为连续存储，指向首字节。
+\item length 是文件大小，或缓冲区占用大小。
+\item next 是指向下一个元数据的指针。
+\item info 是用于管道的额外信息。
+\end{enumerate}
+
+在搜寻文件时，在元数据构成的链表上依次查找，直到找到匹配的文件。
+
+每个元数据占用连续两块，每次修改时修改版本最低的那个，从而在意外情况下可以保证文
+件旧数据仍能读出。
 
 \subsubsection{文件数据的存储}
-（施工中）
+
+\begin{verbatim}
+struct fwd_block {
+  struct fwd_block *next;
+  char data[MAX_BLOCK - OTHER_FIELDS_LEN];
+};
+
+struct back_block {
+  struct back_block *prev;
+  char data[MAX_BLOCK - OTHER_FIELDS_LEN];
+};
+
+struct contiguous {
+  long len;
+  char *buf;
+};
+\end{verbatim}
+
+每次修改文件数据时，首先找到空闲块将修改过的数据写入其中，然后原子地更新元数据。
+这样可以保证无论发生什么，总有一份可用的数据。
+
+默认情况下，文件使用 fwd_block，管道缓冲区使用连续存储。
+
+fwd_block 和 back_block 分配新块时，总是从前向后扫描，而连续存储从后向前扫描。
 
 \subsection{应用程序编程接口}
 \label{design-api}
@@ -207,6 +260,8 @@ while (true) {
 \label{design-mqtt}
 本项目将 MQTT 集成到文件系统中。MQTT 的传输通道被称作消息管道。消息管道中的每个请求的发送和接收均是原子的，即每个消息要么不存在，要么必是
 完整的。这在网络不稳定的环境中有一定应用价值。
+
+（施工中）
 
 \subsubsection{替换策略}
 \label{design-replace}
