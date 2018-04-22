@@ -4,7 +4,6 @@
 \begin{document}
 \title{可行性报告}
 \author{马凯,金孜达,刘时,徐亦尧,李文睿}
-\setcounter{tocdepth}{2}
 \maketitle
 \tableofcontents
 \newpage
@@ -39,12 +38,8 @@ CAP定理（CAP theorem），又被称作布鲁尔定理（Brewer's theorem）�
 
 以上的每一种性能指标，都有对应的优化方法，例如读写速度可以通过RAID0来提高，可靠性可以通过RAID1来提高等。
 
-<<<<<<< HEAD
-（参考文献：https://www.quora.com/Whats-the-difference-between-Reliability-Durability-and-Availability-for-data-storage-system, https://en.wikipedia.org/wiki/Mean_time_between_failures）
-=======
-（是否要继续增加内容？）
-
->>>>>>> refs/remotes/origin/master
+（参考文献：\\
+https://www.quora.com/Whats-the-difference-between-Reliability-Durability-and-Availability-for-data-storage-system, \\ https://en.wikipedia.org/wiki/Mean\_time\_between\_failures）
 
 \subsection{技术依据}
 \subsubsection{RIOT OS}
@@ -92,12 +87,10 @@ RIOT 调度的基本单位是线程，提供抢占式（半协作式）调度方
 
 我们初步的设想是实现基于计算机的文件服务器。这样做有两个好处：第一，PC作为中心节点的控制中枢使我们能够方便地访问中心节点，便于系统的测试与管理，让我们能聚焦于优化端点的存储与传输性能，免于花过多时间纠结在中心节点的访问上，这不是我们项目的关键所在；第二，PC的性能冗余使我们可以考虑为文件服务器增加更多功能，丰富项目的应用场景。事实上，实现数据在移动端的访问与管理，以及为文件服务器增加更多实用功能是本项目的两个重要的拓展方向。
 
-（参考文献：https://en.wikipedia.org/wiki/Server_(computing), https://en.wikipedia.org/wiki/File_server, https://en.wikipedia.org/wiki/Communications_server, https://en.wikipedia.org/wiki/Network-attached_storage）
-
-\subsection{创新点}
+（参考文献：https://en.wikipedia.org/wiki/Server\_(computing)\\
+ https://en.wikipedia.org/wiki/File\_server\\ https://en.wikipedia.org/wiki/Communications\_server\\ https://en.wikipedia.org/wiki/Network-attached\_storage）
 
 \section{概要设计报告}
-本章是本项目的概要设计，充分考虑了可行性。
 
 \subsection{简介}
 本节介绍整个系统的总体结构。
@@ -125,7 +118,7 @@ RIOT 调度的基本单位是线程，提供抢占式（半协作式）调度方
 \begin{enumerate}
 	\item 一般文件（详见小节 \ref{design-fs}）；
 	\item 流数据管道（详见小节 \ref{design-stream}）；
-	\item 消息管道（详见小节 \ref{design-mqtt}）。
+	\item 消息管道（详见小节 \ref{design-message}）。
 \end{enumerate}
 其中，\textbf{管道}指网络资源在本地文件系统的映射，但占据本地存储空间。
 对客户端应用程序来说，以上三种资源是使用统一的命名空间进行访问和操作，即这些资源均可看作文件。
@@ -181,11 +174,13 @@ struct metadata {
 \begin{verbatim}
 struct fwd_block {
   struct fwd_block *next;
+  long size;
   char data[MAX_BLOCK - OTHER_FIELDS_LEN];
 };
 
 struct back_block {
   struct back_block *prev;
+  long size;
   char data[MAX_BLOCK - OTHER_FIELDS_LEN];
 };
 
@@ -273,11 +268,11 @@ while (true) {
 由于流数据是以字节为单位的，故所有操作本身已经是原子的了，无需进一步设计。
 
 \subsubsection{消息管道}
-\label{design-mqtt}
-本项目将 MQTT 集成到文件系统中。MQTT 的传输通道被称作消息管道。消息管道中的每个请求的发送和接收均是原子的，即每个消息要么不存在，要么必是
+\label{design-message}
+本项目将消息集成到文件系统中。消息的传输通道被称作消息管道。消息管道中的每个请求的发送和接收均是原子的，即每个消息要么不存在，要么必是
 完整的。这在网络不稳定的环境中有一定应用价值。
 
-（施工中）
+消息管道的实现与数据流管道类似，区别是每次替换数据时依次替换掉已有消息，直到有足够空间容纳当前数据。正在被发送的块被标记为锁定，即无法被替换，避免不完整数据被发出。
 
 \subsubsection{替换策略}
 \label{design-replace}
@@ -297,9 +292,12 @@ while (true) {
 
 \subsection{安全性}
 \label{design-security}
-由于物联网设备可能暴露在开放环境中，这就使得数据的安全性受到威胁。本项目充分考虑到此情形，并设计了安全传输策略。
+由于物联网设备可能暴露在开放环境中，这就使得数据的安全性受到威胁。本项目为此设计了安全传输策略。
 
-（施工中：非对称密钥交换 + 对称加密传输；对性能影响的分析：实验数据？）
+每个设备可以根据需要附带一个信任服务器的公钥，在建立逻辑连接的过程中，客户端随机选定一个密钥并用公钥加密后送往服务器，
+随后与服务器之间的所有网络流量均用此密钥对称加密。
+
+由于对称加密对性能的影响很小，该方案一定程度上可以提供系统安全性。这个加密方案仍需要进一步的实验。
 
 \subsection{调度策略}
 鉴于本项目实现平台（实时操作系统）的特殊性，有必要考虑本项目为应用程序带来的开销，特别是网络相关功能。
@@ -319,10 +317,5 @@ RIOT 调度的基本单位是线程，每个应用程序包含至少两个线程
 考虑到 RIOT 调度模型，这在普通的线程模型下很难做到。
 
 综上所述，本项目将作为 RIOT module 或 kernel patch 发布。
-
-\subsection{服务端设计}
-本项目并非孤立的文件系统，服务器也在整个系统中发挥重要作用。本节详述中心服务程序的设计。
-
-（施工中）
 
 \end{document}
