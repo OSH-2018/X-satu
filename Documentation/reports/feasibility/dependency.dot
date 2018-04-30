@@ -1,0 +1,13 @@
+digraph G {
+	FS -> StreamSend;
+	StreamSend -> StreamBuffer;
+	FS -> MsgSend;
+	MsgSend -> MsgBuffer;
+	StreamSend -> "Server (Stream)";
+	StreamBuffer -> "Server (Stream)";
+	MsgSend -> "Server (Msg)";
+	MsgBuffer -> "Server (Msg)";
+	StreamBuffer -> Security;
+	MsgBuffer -> Security;
+	Security -> "Server (Security)";
+}

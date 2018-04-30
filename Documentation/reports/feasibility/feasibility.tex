@@ -382,7 +382,17 @@ RIOT 调度的基本单位是线程，每个应用程序包含至少两个线程
 
 综上所述，本项目将作为 RIOT module 或 kernel patch 发布。
 
+
 \section{预期时间表}
+
+\begin{figure}
+	\centering
+	\includegraphics[scale=0.7]{dependency.png}
+	\caption{项目任务依赖关系图}
+	\label{fig-dep}
+\end{figure}
+
+
 根据任务的紧迫程度，我们将任务按优先级划分为下面这些子任务：
 
 \begin{enumerate}
@@ -396,6 +406,7 @@ RIOT 调度的基本单位是线程，每个应用程序包含至少两个线程
 	\item \label{security} 安全信道
 \end{enumerate}
 
-其中，\ref{fs} 定义了最小实现，即为嵌入式设备提供一个文件系统。项目重点是实现管道。
+其中，\ref{fs} 定义了最小实现，即为嵌入式设备提供一个文件系统。项目重点是实现管道。依赖关系如下图 \ref{fig-dep}。
+
 
 \end{document}
