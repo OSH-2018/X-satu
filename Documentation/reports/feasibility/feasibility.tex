@@ -136,6 +136,9 @@ RIOT 调度的基本单位是线程，提供抢占式（半协作式）调度方
 时，优先级高的线程将总被执行。若优先级相同，则使用协作式调度策略，即通过
 \verb|thread_yield| 交还 CPU 时间。
 
+\paragraph{开发环境}
+RIOT 开发环境是标准的 C 语言和 \verb|make| ，并且有一个 native port，可以直接编译到 Linux 可执行文件，便于使用标准的编辑器、编译器和调试工具，可以降低开发难度。相比之下，FreeRTOS 只提供了 Windows 模拟器，和 RIOT 相比在方便程度上有一定差距。此外，本项目和内核耦合并不紧密，因此开发完成后预计可以方便地移植到其他 RTOS，故选择 RIOT 作为主要开发环境。
+
 综上所述，RIOT 为本项目开展提供了极大方便，使得我们无需自己实现这些基础性功能，而是专注于项目本身的创新和设计。
 
 \subsubsection{中心节点（server）的结构设计}
@@ -378,5 +381,21 @@ RIOT 调度的基本单位是线程，每个应用程序包含至少两个线程
 考虑到 RIOT 调度模型，这在普通的线程模型下很难做到。
 
 综上所述，本项目将作为 RIOT module 或 kernel patch 发布。
+
+\section{预期时间表}
+根据任务的紧迫程度，我们将任务按优先级划分为下面这些子任务：
+
+\begin{enumerate}
+	\item \label{fs} 核心文件系统
+	\item \label{stream-send} 流数据管道（仅发送和接收数据）
+	\item \label{stream-buffer} 流数据管道（本地缓存）
+	\item \label{server-stream} 服务端（识别客户并储存数据）
+	\item \label{msg-send} 消息管道（仅发送和接收数据）
+	\item \label{msg-buffer} 消息管道（本地缓存）
+	\item \label{server-msg} 服务端（消息接收、储存、转发）
+	\item \label{security} 安全信道
+\end{enumerate}
+
+其中，\ref{fs} 定义了最小实现，即为嵌入式设备提供一个文件系统。项目重点是实现管道。
 
 \end{document}
