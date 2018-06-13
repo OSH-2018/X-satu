@@ -20,9 +20,11 @@ for use with RIOT OS.
 ```
 .
 ├── Documentation    Documentation of the Satu FS
+├── example          A demo app for RIOT OS
 ├── port             A port package for RIOT OS
-├── RIOT             The RIOT OS
-└── satu             The Satu FS
+│   └── fs           The actual port
+├── RIOT             RIOT OS
+└── satu             Satu FS
 ```
 
 We hope more OSs can be supported in the future, so we don't simply
