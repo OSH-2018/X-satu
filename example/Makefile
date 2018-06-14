@@ -28,8 +28,8 @@ USEMODULE += vfs
 
 # Use Satu file system
 EXTERNAL_MODULE_DIRS += $(RIOTBASE)/../port
-INCLUDES += -I$(RIOTBASE)/../port/fs
 INCLUDES += -I$(RIOTBASE)/../satu
+INCLUDES += -I$(RIOTBASE)/../port
 DIRS += $(RIOTBASE)/../port/fs
 USEMODULE += satufs
 USEMODULE += satufs_fs
