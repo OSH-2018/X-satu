@@ -5,9 +5,12 @@
 #include "mtd.h"
 #include "mutex.h"
 
+/// satufs descriptor for vfs integration
 typedef struct {
-    mtd_dev_t *dev;
-    mutex_t lock;
+    sfs_t         fs;           // satufs descriptor
+    sfs_config_t  config;       // satufs config
+    mtd_dev_t    *dev;          // MTD device
+    mutex_t       lock;         // mutex
 } satufs_desc_t;
 
 extern const vfs_file_system_t satufs_file_system;
