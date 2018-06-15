@@ -26,12 +26,14 @@ USEMODULE += mtd
 # Use VFS
 USEMODULE += vfs
 
-# Use Satu file system
+# Use satufs
 EXTERNAL_MODULE_DIRS += $(RIOTBASE)/../port
 INCLUDES += -I$(RIOTBASE)/../satu
 INCLUDES += -I$(RIOTBASE)/../port
 DIRS += $(RIOTBASE)/../port/fs
+DIRS += $(RIOTBASE)/../port
 USEMODULE += satufs
 USEMODULE += satufs_fs
+CFLAGS += -DVFS_FILE_BUFFER_SIZE=52 -DVFS_DIR_BUFFER_SIZE=44
 
 include $(RIOTBASE)/Makefile.include
