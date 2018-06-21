@@ -2,16 +2,17 @@
 
 import sys
 import socket
-#import config
+import json
 
 
 class ClientManager:
-    def __init__(self):
+    def __init__(self, prefix):
+        self.prefix = prefix
         self.clients = {}
 
     def get(self, addr):
         if addr not in self.clients:
-            client = Client(addr, str(addr))
+            client = Client(addr, str(addr), self.prefix)
             self.clients[addr] = client
         return self.clients[addr]
 
@@ -22,15 +23,16 @@ class ClientManager:
 
 
 class Client:
-    def __init__(self, addr, name):
+    def __init__(self, addr, name, prefix):
         self.addr = addr
         self.name = name
+        self.prefix = prefix
         self.stream_file = None
 
     def get_stream_file(self):
         if self.stream_file:
             return self.stream_file
-        self.stream_file = open('stream.%s' % self.name, 'wb', buffering=0)
+        self.stream_file = open('%s' % self.prefix + '.%s' % self.name, 'wb', buffering=0)
         return self.stream_file
 
     def store(self, data):
@@ -41,10 +43,10 @@ class Client:
 
 
 class Server:
-    def __init__(self, addr, port):
-        self.clients = ClientManager()
+    def __init__(self, config):
+        self.clients = ClientManager(config['prefix'])
         self.udpsock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        self.udpsock.bind((addr, port))
+        self.udpsock.bind((config['addr'], config['port']))
 
     def __enter__(self):
         return self
@@ -63,7 +65,10 @@ class Server:
 
 
 def main(args):
-    server = Server('0.0.0.0', 54321)
+    config = {}
+    with open('config.json', 'r') as f:
+        config = json.load(f)
+    server = Server(config)
     server.run()
 
 if __name__ == '__main__':
