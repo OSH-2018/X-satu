@@ -6,13 +6,13 @@ import json
 
 
 class ClientManager:
-    def __init__(self, prefix):
-        self.prefix = prefix
+    def __init__(self, config):
+        self.format = self.ename(config['format'])
         self.clients = {}
 
     def get(self, addr):
         if addr not in self.clients:
-            client = Client(addr, str(addr), self.prefix)
+            client = Client(addr, str(addr), self.format)
             self.clients[addr] = client
         return self.clients[addr]
 
@@ -21,18 +21,27 @@ class ClientManager:
             client.close()
         clients = {}
 
+    def ename(self, format):
+        name = ''
+        parts = format.split("%")
+        name += parts[0]
+        for i in range(1,len(parts)):
+            name += self.formatab[parts[i][0]]
+            name += self.formatab[parts[i][1:]]
+        return name
+
 
 class Client:
-    def __init__(self, addr, name, prefix):
+    def __init__(self, addr, name, format):
         self.addr = addr
         self.name = name
-        self.prefix = prefix
+        self.format = format
         self.stream_file = None
 
     def get_stream_file(self):
         if self.stream_file:
             return self.stream_file
-        self.stream_file = open('%s' % self.prefix + '.%s' % self.name, 'wb', buffering=0)
+        self.stream_file = open(eval(self.format), 'wb', buffering=0)
         return self.stream_file
 
     def store(self, data):
@@ -44,7 +53,7 @@ class Client:
 
 class Server:
     def __init__(self, config):
-        self.clients = ClientManager(config['prefix'])
+        self.clients = ClientManager(config)
         self.udpsock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.udpsock.bind((config['addr'], config['port']))
 

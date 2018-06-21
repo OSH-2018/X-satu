@@ -1,5 +1,6 @@
 {
 	"port": 54321,
 	"addr": "0.0.0.0",
-	"prefix": "stream"
+	"prefix": "stream",
+	"format": "%Y-%M-%D-%A:%P"
 }
