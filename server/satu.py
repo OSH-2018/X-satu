@@ -2,6 +2,7 @@
 
 import sys
 import socket
+#import config
 
 
 class ClientManager:
@@ -29,7 +30,7 @@ class Client:
     def get_stream_file(self):
         if self.stream_file:
             return self.stream_file
-        self.stream_file = open('stream.%s' % self.name, 'wb')
+        self.stream_file = open('stream.%s' % self.name, 'wb', buffering=0)
         return self.stream_file
 
     def store(self, data):
