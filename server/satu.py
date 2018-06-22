@@ -3,16 +3,19 @@
 import sys
 import socket
 import json
+import datetime as dt
 
 
 class ClientManager:
     def __init__(self, config):
-        self.format = self.ename(config['format'])
+        self.format = 'stream'
         self.clients = {}
+        self.config = config
 
     def get(self, addr):
+        self.format = self.ename(addr)
         if addr not in self.clients:
-            client = Client(addr, str(addr), self.format)
+            client = Client(addr, self.format)
             self.clients[addr] = client
         return self.clients[addr]
 
@@ -21,27 +24,33 @@ class ClientManager:
             client.close()
         clients = {}
 
-    def ename(self, format):
+    def ename(self, addr):
+        # format the filename by format string in json
         name = ''
-        parts = format.split("%")
+        _format = self.config['format']
+        parts = _format.split("%")
         name += parts[0]
         for i in range(1,len(parts)):
-            name += self.formatab[parts[i][0]]
-            name += self.formatab[parts[i][1:]]
+            if parts[i][0] == '@': # address
+                name += addr[0]
+            elif parts[i][0] == '#': # port number
+                name += str(addr[1])
+            else:
+                name += dt.datetime.today().strftime('%'+parts[i][0])
+            name += parts[i][1:]
         return name
 
 
 class Client:
-    def __init__(self, addr, name, format):
+    def __init__(self, addr, format):
         self.addr = addr
-        self.name = name
         self.format = format
         self.stream_file = None
 
     def get_stream_file(self):
         if self.stream_file:
             return self.stream_file
-        self.stream_file = open(eval(self.format), 'wb', buffering=0)
+        self.stream_file = open(self.format, 'ab', buffering=0)
         return self.stream_file
 
     def store(self, data):
