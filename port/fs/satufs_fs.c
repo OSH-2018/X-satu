@@ -127,6 +127,44 @@ static int _dev_sync(const struct sfs_config *c)
     return 0;
 }
 
+static int
+_dev_connect(const struct sfs_config *c,
+             sfs_addr_t addr)
+{
+    (void) c;
+    (void) addr;
+
+    return 0;
+}
+
+static int
+_dev_send(const struct sfs_config *c,
+          sfs_addr_t addr,
+          const void *buffer,
+          sfs_size_t size)
+{
+    (void) c;
+    (void) addr;
+    (void) buffer;
+    (void) size;
+
+    return 0;
+}
+
+static int
+_dev_recv(const struct sfs_config *c,
+          sfs_addr_t addr,
+          void *buffer,
+          sfs_size_t size)
+{
+    (void) c;
+    (void) addr;
+    (void) buffer;
+    (void) size;
+
+    return 0;
+}
+
 static int prepare(satufs_desc_t *fs)
 {
     mutex_init(&fs->lock);
@@ -153,6 +191,9 @@ static int prepare(satufs_desc_t *fs)
     fs->config.prog = _dev_write;
     fs->config.erase = _dev_erase;
     fs->config.sync = _dev_sync;
+    fs->config.connect = _dev_connect;
+    fs->config.send = _dev_send;
+    fs->config.recv = _dev_recv;
 #if SATUFS_FILE_BUFFER_SIZE
     fs->config.file_buffer = fs->file_buf;
 #endif

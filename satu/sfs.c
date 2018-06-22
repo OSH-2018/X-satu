@@ -254,6 +254,10 @@ static int sfs_bd_sync(sfs_t *sfs) {
     return sfs->cfg->sync(sfs->cfg);
 }
 
+/* static int sfs_net_send(sfs_t *sfs, sfs_addr_t addr, const void *data, sfs_size_t len) { */
+/*     return sfs->cfg->send(sfs->cfg, addr, data, len); */
+/* } */
+
 
 /// Internal operations predeclared here ///
 int sfs_traverse(sfs_t *sfs, int (*cb)(void*, sfs_block_t), void *data);

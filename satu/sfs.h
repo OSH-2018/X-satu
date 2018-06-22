@@ -27,7 +27,7 @@
 // Software library version
 // Major (top-nibble), incremented on backwards incompatible changes
 // Minor (bottom-nibble), incremented on feature additions
-#define SFS_VERSION 0x00010003
+#define SFS_VERSION 0x00010004
 #define SFS_VERSION_MAJOR (0xffff & (SFS_VERSION >> 16))
 #define SFS_VERSION_MINOR (0xffff & (SFS_VERSION >>  0))
 
@@ -50,9 +50,20 @@ typedef int32_t  sfs_soff_t;
 
 typedef uint32_t sfs_block_t;
 
+#ifndef SFS_NET_ADDR_TYPE
+typedef void* sfs_addr_t;
+#else
+typedef SFS_NET_ADDR_TYPE sfs_addr_t;
+#endif
+
 // Max name size in bytes
 #ifndef SFS_NAME_MAX
 #define SFS_NAME_MAX 255
+#endif
+
+// Max network connection slots
+#ifndef SFS_CONN_MAX
+#define SFS_CONN_MAX 5
 #endif
 
 // Possible error codes, these are negative to allow
@@ -75,6 +86,8 @@ enum sfs_error {
 // File types
 enum sfs_type {
     SFS_TYPE_REG        = 0x11,
+    SFS_TYPE_STR        = 0x12,
+    SFS_TYPE_MSG        = 0x13,
     SFS_TYPE_DIR        = 0x22,
     SFS_TYPE_SUPERBLOCK = 0x2e,
 };
@@ -131,6 +144,24 @@ struct sfs_config {
     // Sync the state of the underlying block device. Negative error codes
     // are propogated to the user.
     int (*sync)(const struct sfs_config *c);
+
+    // Connect to a server. One should connect to servers according to
+    // some order. Negative error codes are propogated to the user.
+    int (*connect)(const struct sfs_config *c, sfs_addr_t addr);
+
+    // Send out data packets to a specific network address. Negative
+    // error codes are propogated to the user.
+    int (*send)(const struct sfs_config *c,
+                sfs_addr_t addr,
+                const void *buffer,
+                sfs_size_t size);
+
+    // Receive data packets from a specific network address. Negative
+    // error codes are propogated to the user.
+    int (*recv)(const struct sfs_config *c,
+                sfs_addr_t addr,
+                void *buffer,
+                sfs_size_t size);
 
     // Minimum size of a block read. This determines the size of read buffers.
     // This may be larger than the physical read size to improve performance
