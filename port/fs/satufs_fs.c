@@ -25,6 +25,7 @@
 #include <string.h>
 
 #include "fs/satufs_fs.h"
+#include "net/sock/udp.h"
 
 #include "kernel_defines.h"
 
@@ -129,12 +130,38 @@ static int _dev_sync(const struct sfs_config *c)
 
 static int
 _dev_connect(const struct sfs_config *c,
-             sfs_addr_t addr)
+             uint8_t raw_addr[16],
+             uint16_t port,
+             sfs_addr_t *addr)
 {
-    (void) c;
-    (void) addr;
+    satufs_desc_t *fs = c->context;
+    int id = fs->n_conn;
+    int res;
+    sock_udp_ep_t remote = { .family = AF_INET6, .port = port, .netif = SOCK_ADDR_ANY_NETIF };
+    memcpy(remote.addr.ipv6, raw_addr, 16);
 
-    return 0;
+#if ENABLE_DEBUG
+    ipv6_addr_t probe;
+    memcpy(probe.u8, raw_addr, 16);
+    DEBUG("is this loopback? %d\n", ipv6_addr_is_loopback(&probe));
+#endif
+
+    if (id >= SATUFS_CONN_MAX) {
+        DEBUG("satufs_connect: overflow\n");
+        return -EINVAL;
+    }
+
+    res = sock_udp_create(&fs->conn[id], NULL, &remote, 0);
+    if (!res) {
+        fs->n_conn++;
+        DEBUG("satufs_connect: success addr=%p\n", (void*)&fs->conn[id]);
+    } else {
+        DEBUG("satufs_connect: failed with %s\n", strerror(-res));
+    }
+
+    *addr = &fs->conn[id]; // typeof(addr) == sock_udp_t*
+
+    return res;
 }
 
 static int
@@ -144,11 +171,9 @@ _dev_send(const struct sfs_config *c,
           sfs_size_t size)
 {
     (void) c;
-    (void) addr;
-    (void) buffer;
-    (void) size;
-
-    return 0;
+    int res;
+    res = sock_udp_send(addr, buffer, size, NULL);
+    return res;
 }
 
 static int

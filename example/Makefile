@@ -34,6 +34,8 @@ DIRS += $(RIOTBASE)/../port/fs
 DIRS += $(RIOTBASE)/../port
 USEMODULE += satufs
 USEMODULE += satufs_fs
+USEMODULE += gnrc_sock_udp
+USEMODULE += gnrc_ipv6
 CFLAGS += -DVFS_FILE_BUFFER_SIZE=52 -DVFS_DIR_BUFFER_SIZE=44
 
 include $(RIOTBASE)/Makefile.include

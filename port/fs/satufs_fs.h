@@ -30,6 +30,7 @@ extern "C" {
 #include "sfs.h"
 #include "mtd.h"
 #include "mutex.h"
+#include "net/sock/udp.h"
 
 #if VFS_FILE_BUFFER_SIZE < 52
 #error "VFS_FILE_BUFFER_SIZE is too small, at least 52 bytes is required"
@@ -66,6 +67,11 @@ extern "C" {
  * If set, it must be program size */
 #define SATUFS_PROG_BUFFER_SIZE   (0)
 #endif
+
+#ifndef SATUFS_CONN_MAX
+/** How many connections at the same time? */
+#define SATUFS_CONN_MAX (5)
+#endif
 /** @} */
 
 /**
@@ -94,6 +100,9 @@ typedef struct {
 #endif
     /** lookahead buffer to use internally */
     uint8_t lookahead_buf[SATUFS_LOOKAHEAD_SIZE / 8];
+    /** connections */
+    short n_conn;
+    sock_udp_t conn[SATUFS_CONN_MAX];
 } satufs_desc_t;
 
 /** The satufs vfs driver */

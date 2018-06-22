@@ -1,3 +1,5 @@
 # This is a stub.
 
 USEMODULE += mtd
+USEMODULE += gnrc_sock_udp
+USEMODULE += gnrc_ipv6

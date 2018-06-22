@@ -2,6 +2,7 @@
  * sfs utility functions
  *
  * Copyright (c) 2017 ARM Limited
+ * Copyright (c) 2018 ksqsf
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -164,7 +165,7 @@ static inline uint32_t sfs_tole32(uint32_t a) {
 // Calculate CRC-32 with polynomial = 0x04c11db7
 void sfs_crc(uint32_t *crc, const void *buffer, size_t size);
 
-// Allocate memory, only used if buffers are not provided to littlefs
+// Allocate memory, only used if buffers are not provided to satufs
 static inline void *sfs_malloc(size_t size) {
 #ifndef SFS_NO_MALLOC
     return malloc(size);
@@ -173,7 +174,7 @@ static inline void *sfs_malloc(size_t size) {
 #endif
 }
 
-// Deallocate memory, only used if buffers are not provided to littlefs
+// Deallocate memory, only used if buffers are not provided to satufs
 static inline void sfs_free(void *p) {
 #ifndef SFS_NO_MALLOC
     free(p);

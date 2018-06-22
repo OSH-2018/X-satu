@@ -1,7 +1,8 @@
 /*
- * The little filesystem (adapted)
+ * A little filesystem (adapted)
  *
  * Copyright (c) 2017 ARM Limited
+ * Copyright (c) 2018 ksqsf
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -50,10 +51,8 @@ typedef int32_t  sfs_soff_t;
 
 typedef uint32_t sfs_block_t;
 
-#ifndef SFS_NET_ADDR_TYPE
+#ifndef sfs_addr_t
 typedef void* sfs_addr_t;
-#else
-typedef SFS_NET_ADDR_TYPE sfs_addr_t;
 #endif
 
 // Max name size in bytes
@@ -86,8 +85,6 @@ enum sfs_error {
 // File types
 enum sfs_type {
     SFS_TYPE_REG        = 0x11,
-    SFS_TYPE_STR        = 0x12,
-    SFS_TYPE_MSG        = 0x13,
     SFS_TYPE_DIR        = 0x22,
     SFS_TYPE_SUPERBLOCK = 0x2e,
 };
@@ -118,7 +115,7 @@ enum sfs_whence_flags {
 };
 
 
-// Configuration provided during initialization of the littlefs
+// Configuration provided during initialization of the satufs
 struct sfs_config {
     // Opaque user provided context that can be used to pass
     // information to the block device operations
@@ -145,9 +142,9 @@ struct sfs_config {
     // are propogated to the user.
     int (*sync)(const struct sfs_config *c);
 
-    // Connect to a server. One should connect to servers according to
-    // some order. Negative error codes are propogated to the user.
-    int (*connect)(const struct sfs_config *c, sfs_addr_t addr);
+    // Connect to a server. Negative error codes are propogated to the
+    // user.
+    int (*connect)(const struct sfs_config *c, uint8_t raw_addr[16], uint16_t port, sfs_addr_t *handle);
 
     // Send out data packets to a specific network address. Negative
     // error codes are propogated to the user.
@@ -218,7 +215,7 @@ struct sfs_info {
 };
 
 
-/// littlefs data structures ///
+/// satufs data structures ///
 typedef struct sfs_entry {
     sfs_off_t off;
 
@@ -232,6 +229,12 @@ typedef struct sfs_entry {
                 sfs_block_t head;
                 sfs_size_t size;
             } file;
+            struct {
+                sfs_block_t head;
+                sfs_size_t size;
+                uint64_t addr[2]; // IPv6 address
+                uint16_t port;
+            } stream;
             sfs_block_t dir[2];
         } u;
     } d;
@@ -297,7 +300,7 @@ typedef struct sfs_free {
     uint32_t *buffer;
 } sfs_free_t;
 
-// The littlefs type
+// The satufs type
 typedef struct sfs {
     const struct sfs_config *cfg;
 
@@ -315,24 +318,24 @@ typedef struct sfs {
 
 /// Filesystem functions ///
 
-// Format a block device with the littlefs
+// Format a block device with the satufs
 //
-// Requires a littlefs object and config struct. This clobbers the littlefs
+// Requires a satufs object and config struct. This clobbers the satufs
 // object, and does not leave the filesystem mounted.
 //
 // Returns a negative error code on failure.
 int sfs_format(sfs_t *sfs, const struct sfs_config *config);
 
-// Mounts a littlefs
+// Mounts a satufs
 //
-// Requires a littlefs object and config struct. Multiple filesystems
-// may be mounted simultaneously with multiple littlefs objects. Both
+// Requires a satufs object and config struct. Multiple filesystems
+// may be mounted simultaneously with multiple satufs objects. Both
 // sfs and config must be allocated while mounted.
 //
 // Returns a negative error code on failure.
 int sfs_mount(sfs_t *sfs, const struct sfs_config *config);
 
-// Unmounts a littlefs
+// Unmounts a satufs
 //
 // Does nothing besides releasing any allocated resources.
 // Returns a negative error code on failure.
@@ -481,7 +484,7 @@ sfs_soff_t sfs_dir_tell(sfs_t *sfs, sfs_dir_t *dir);
 int sfs_dir_rewind(sfs_t *sfs, sfs_dir_t *dir);
 
 
-/// Miscellaneous littlefs specific operations ///
+/// Miscellaneous satufs specific operations ///
 
 // Traverse through all blocks in use by the filesystem
 //

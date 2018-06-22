@@ -1,7 +1,8 @@
 /*
- * The little filesystem (adapted)
+ * A little filesystem (adapted)
  *
  * Copyright (c) 2017 ARM Limited
+ * Copyright (c) 2018 ksqsf
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -254,9 +255,21 @@ static int sfs_bd_sync(sfs_t *sfs) {
     return sfs->cfg->sync(sfs->cfg);
 }
 
-/* static int sfs_net_send(sfs_t *sfs, sfs_addr_t addr, const void *data, sfs_size_t len) { */
-/*     return sfs->cfg->send(sfs->cfg, addr, data, len); */
-/* } */
+__attribute_used__
+static int sfs_net_connect(sfs_t *sfs, uint8_t raw_addr[16], uint16_t port, sfs_addr_t *addr) {
+    return sfs->cfg->connect(sfs->cfg, raw_addr, port, addr);
+}
+
+__attribute_used__
+static int sfs_net_send(sfs_t *sfs, sfs_addr_t addr, const void *data, sfs_size_t len) {
+    printf("sfs_net_send: addr=%p\n", addr);
+    return sfs->cfg->send(sfs->cfg, addr, data, len);
+}
+
+__attribute_used__
+static int sfs_net_recv(sfs_t *sfs, sfs_addr_t addr, void *buffer, sfs_size_t len) {
+    return sfs->cfg->recv(sfs->cfg, addr, buffer, len);
+}
 
 
 /// Internal operations predeclared here ///
@@ -1596,7 +1609,7 @@ sfs_ssize_t sfs_file_read(sfs_t *sfs, sfs_file_t *file,
     return size;
 }
 
-sfs_ssize_t sfs_file_write(sfs_t *sfs, sfs_file_t *file,
+sfs_ssize_t sfs_file_real_write(sfs_t *sfs, sfs_file_t *file,
         const void *buffer, sfs_size_t size) {
     const uint8_t *data = buffer;
     sfs_size_t nsize = size;
@@ -1693,6 +1706,11 @@ relocate:
 
     file->flags &= ~SFS_F_ERRED;
     return size;
+}
+
+sfs_ssize_t sfs_file_write(sfs_t *sfs, sfs_file_t *file,
+        const void *buffer, sfs_size_t size) {
+    return sfs_file_real_write(sfs, file, buffer, size);
 }
 
 sfs_soff_t sfs_file_seek(sfs_t *sfs, sfs_file_t *file,
@@ -2106,7 +2124,7 @@ int sfs_format(sfs_t *sfs, const struct sfs_config *cfg) {
         .d.elen = sizeof(superblock.d) - sizeof(superblock.d.magic) - 4,
         .d.nlen = sizeof(superblock.d.magic),
         .d.version = SFS_DISK_VERSION,
-        .d.magic = {"littlefs"},
+        .d.magic = {"satufs99"},
         .d.block_size  = sfs->cfg->block_size,
         .d.block_count = sfs->cfg->block_count,
         .d.root = {sfs->root[0], sfs->root[1]},
@@ -2176,7 +2194,7 @@ int sfs_mount(sfs_t *sfs, const struct sfs_config *cfg) {
         sfs->root[1] = superblock.d.root[1];
     }
 
-    if (err || memcmp(superblock.d.magic, "littlefs", 8) != 0) {
+    if (err || memcmp(superblock.d.magic, "satufs99", 8) != 0) {
         SFS_ERROR("Invalid superblock at %d %d", 0, 1);
         return SFS_ERR_CORRUPT;
     }
@@ -2189,6 +2207,22 @@ int sfs_mount(sfs_t *sfs, const struct sfs_config *cfg) {
         return SFS_ERR_INVAL;
     }
 
+    // FIXME CODE FOR TESTING
+    {
+        int res;
+        sfs_addr_t addr = 0;
+
+        printf("Entering TESTING!!\n");
+        res = sfs_net_connect(sfs, (uint8_t[16]){ 0x00, 0x00, 0x00, 0x00, \
+                    0x00, 0x00, 0x00, 0x00,                             \
+                    0x00, 0x00, 0x00, 0x00,                             \
+                    0x00, 0x00, 0x00, 0x01 }, 54321, &addr);
+        printf("connect localhost %s, addr=%p\n", strerror(-res), addr);
+
+        res = sfs_net_send(sfs, addr, "hello\n", 6);
+        printf("send %s\n", strerror(res < 0 ? -res : 0));
+    }
+
     return 0;
 }
 
@@ -2197,7 +2231,7 @@ int sfs_unmount(sfs_t *sfs) {
 }
 
 
-/// Littlefs specific operations ///
+/// Satufs specific operations ///
 int sfs_traverse(sfs_t *sfs, int (*cb)(void*, sfs_block_t), void *data) {
     if (sfs_pairisnull(sfs->root)) {
         return 0;
