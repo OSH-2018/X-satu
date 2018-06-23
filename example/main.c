@@ -21,19 +21,6 @@ static const shell_command_t shell_commands[] = {
 
 int main(void)
 {
-    // Test network
-    {
-        int res;
-        printf("TESTING NETWORK!!\n");
-        sock_udp_t sock;
-        sock_udp_ep_t remote = { .family = AF_INET6, .port = 54321, .netif = SOCK_ADDR_ANY_NETIF, .addr = IPV6_ADDR_LOOPBACK };
-        res = 0;
-        res = sock_udp_create(&sock, NULL, &remote, 0);
-        printf("%s\n", strerror(res));
-        sock_udp_send(&sock, "hello\n", 6, NULL);
-        printf("%s\n", strerror(res));
-    }
-
     // Format storage
     fs_desc.dev = MTD_0;
     int res = vfs_format(&flash_mount);

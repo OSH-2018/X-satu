@@ -144,7 +144,7 @@ struct sfs_config {
 
     // Connect to a server. Negative error codes are propogated to the
     // user.
-    int (*connect)(const struct sfs_config *c, uint8_t raw_addr[16], uint16_t port, sfs_addr_t *handle);
+    int (*connect)(const struct sfs_config *c, const char *ipv6_addr, uint16_t port, sfs_addr_t *handle);
 
     // Send out data packets to a specific network address. Negative
     // error codes are propogated to the user.

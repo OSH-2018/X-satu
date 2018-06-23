@@ -130,20 +130,25 @@ static int _dev_sync(const struct sfs_config *c)
 
 static int
 _dev_connect(const struct sfs_config *c,
-             uint8_t raw_addr[16],
+             const char *ipv6_addr,
              uint16_t port,
              sfs_addr_t *addr)
 {
     satufs_desc_t *fs = c->context;
     int id = fs->n_conn;
     int res;
-    sock_udp_ep_t remote = { .family = AF_INET6, .port = port, .netif = SOCK_ADDR_ANY_NETIF };
-    memcpy(remote.addr.ipv6, raw_addr, 16);
+    sock_udp_ep_t remote;
+
+    remote.family = AF_INET6;
+    remote.netif = SOCK_ADDR_ANY_NETIF;
+    remote.port = port;
+    if (ipv6_addr_from_str((ipv6_addr_t*)&remote.addr, ipv6_addr) == NULL) {
+        DEBUG("Failed to parse address\n");
+        return -EINVAL;
+    }
 
 #if ENABLE_DEBUG
-    ipv6_addr_t probe;
-    memcpy(probe.u8, raw_addr, 16);
-    DEBUG("is this loopback? %d\n", ipv6_addr_is_loopback(&probe));
+    DEBUG("is this loopback? %d\n", ipv6_addr_is_loopback((ipv6_addr_t *)&remote.addr));
 #endif
 
     if (id >= SATUFS_CONN_MAX) {
@@ -171,9 +176,18 @@ _dev_send(const struct sfs_config *c,
           sfs_size_t size)
 {
     (void) c;
-    int res;
-    res = sock_udp_send(addr, buffer, size, NULL);
-    return res;
+
+    sock_udp_t *sock = addr;
+    sock_udp_ep_t remote;
+    char buf[256];
+
+    sock_udp_get_remote(sock, &remote);
+    printf("remote.port=%d\n", remote.port);
+
+    ipv6_addr_to_str(buf, (ipv6_addr_t *)&remote.addr, remote.port);
+    printf("remote.addr=%s\n", buf);
+
+    return sock_udp_send(addr, buffer, size, NULL);
 }
 
 static int

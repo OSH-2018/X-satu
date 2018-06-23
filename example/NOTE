@@ -1,0 +1,5 @@
+If you are testing example on Linux, make sure create a tap0 interface first.
+
+   sudo ip tuntap add tap0 mode tap user ${USER}
+   sudo ip link set tap0 up
+

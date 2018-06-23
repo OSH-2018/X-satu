@@ -256,8 +256,8 @@ static int sfs_bd_sync(sfs_t *sfs) {
 }
 
 __attribute_used__
-static int sfs_net_connect(sfs_t *sfs, uint8_t raw_addr[16], uint16_t port, sfs_addr_t *addr) {
-    return sfs->cfg->connect(sfs->cfg, raw_addr, port, addr);
+static int sfs_net_connect(sfs_t *sfs, const char *ipv6_addr, uint16_t port, sfs_addr_t *addr) {
+    return sfs->cfg->connect(sfs->cfg, ipv6_addr, port, addr);
 }
 
 __attribute_used__
@@ -2213,13 +2213,10 @@ int sfs_mount(sfs_t *sfs, const struct sfs_config *cfg) {
         sfs_addr_t addr = 0;
 
         printf("Entering TESTING!!\n");
-        res = sfs_net_connect(sfs, (uint8_t[16]){ 0x00, 0x00, 0x00, 0x00, \
-                    0x00, 0x00, 0x00, 0x00,                             \
-                    0x00, 0x00, 0x00, 0x00,                             \
-                    0x00, 0x00, 0x00, 0x01 }, 54321, &addr);
-        printf("connect localhost %s, addr=%p\n", strerror(-res), addr);
+        res = sfs_net_connect(sfs, HOST_IPV6, 54321, &addr);
+        printf("connect host %s, addr=%p\n", strerror(-res), addr);
 
-        res = sfs_net_send(sfs, addr, "hello\n", 6);
+        res = sfs_net_send(sfs, addr, "hello from sfs.c\n", 17);
         printf("send %s\n", strerror(res < 0 ? -res : 0));
     }
 
