@@ -84,6 +84,15 @@ extern "C" {
         SATU_MODE_MSG,
     };
 
+    typedef struct {
+        char magic[4];
+        uint16_t port;
+        char addr[256];
+        uint32_t buffer_size;
+        uint32_t head;
+        uint32_t tail;
+    } satufs_stream_info_t;
+
 /**
  * @brief   satufs descriptor for vfs integration
  */

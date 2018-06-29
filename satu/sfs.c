@@ -16,9 +16,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+#include <stddef.h>
 #include "sfs.h"
 #include "sfs_util.h"
 
+static sfs_ssize_t sfs_file_raw_write(sfs_t *sfs, sfs_file_t *file,
+                                      const void *buffer, sfs_size_t size);
 
 /// Caching block device operations ///
 static int sfs_cache_read(sfs_t *sfs, sfs_cache_t *rcache,
@@ -255,20 +258,51 @@ static int sfs_bd_sync(sfs_t *sfs) {
     return sfs->cfg->sync(sfs->cfg);
 }
 
-__attribute_used__
-static int sfs_net_connect(sfs_t *sfs, const char *ipv6_addr, uint16_t port, sfs_addr_t *addr) {
+static int sfs_net_connect(sfs_t *sfs, const char *ipv6_addr, uint16_t port, sfs_addr_t *addr)
+{
     return sfs->cfg->connect(sfs->cfg, ipv6_addr, port, addr);
 }
 
-__attribute_used__
-static int sfs_net_send(sfs_t *sfs, sfs_addr_t addr, const void *data, sfs_size_t len) {
-    printf("sfs_net_send: addr=%p len=%u\n", addr, len);
+static int sfs_net_send(sfs_t *sfs, sfs_addr_t addr, const void *data, sfs_size_t len)
+{
     return sfs->cfg->send(sfs->cfg, addr, data, len);
 }
 
-__attribute_used__
-static int sfs_net_recv(sfs_t *sfs, sfs_addr_t addr, void *buffer, sfs_size_t len) {
-    return sfs->cfg->recv(sfs->cfg, addr, buffer, len);
+static int sfs_net_recv(sfs_t *sfs, sfs_addr_t addr, void *buffer, sfs_size_t maxlen, uint32_t timeout)
+{
+    return sfs->cfg->recv(sfs->cfg, addr, buffer, maxlen, timeout);
+}
+
+static int sfs_net_send_all(sfs_t *sfs, sfs_addr_t addr, const char *data, sfs_size_t len)
+{
+    unsigned nbytes = 0;
+    int res;
+    while (nbytes < len) {
+        res = sfs_net_send(sfs, addr, data+nbytes, len-nbytes);
+        if (res < 0)
+            return res;
+        nbytes += res;
+    }
+    return nbytes;
+}
+
+static int sfs_net_send_reliably(sfs_t *sfs, sfs_addr_t addr, const char *data, sfs_size_t len)
+{
+    int res, nsend;
+    uint16_t resp;
+    nsend = sfs_net_send_all(sfs, addr, data, len);
+    if (nsend < 0) {
+        puts("send_all failed!!!");
+        return nsend;
+    }
+    res = sfs_net_recv(sfs, addr, &resp, sizeof(resp), sfs->cfg->timeout);
+    if (res == sizeof(resp)) {
+        puts("recv ok!!!");
+        return nsend;
+    } else {
+        puts("timedout!!!");
+        return SFS_ERR_TIMEDOUT;
+    }
 }
 
 
@@ -1398,10 +1432,7 @@ int sfs_file_close(sfs_t *sfs, sfs_file_t *file) {
 int sfs_file_set_mode(sfs_t *sfs, sfs_file_t *file, int wmode)
 {
     int err;
-    struct {
-        uint16_t port;
-        char ipv6[46]; // IPv6 textual representation
-    } data;
+    sfs_stream_info_t data;
     
     err = sfs_file_sync(sfs, file);
     if (err < 0)
@@ -1411,17 +1442,23 @@ int sfs_file_set_mode(sfs_t *sfs, sfs_file_t *file, int wmode)
     err = sfs_file_seek(sfs, file, 0, SFS_SEEK_SET);
     if (err < 0)
         return err;
-    printf("seek ok\n");
     err = sfs_file_read(sfs, file, &data, sizeof(data));
     if (err < 0)
         return err;
-    printf("read ok\n");
-    printf("sfs_file_set_mode: port=%d\n", data.port);
-    err = sfs_net_connect(sfs, data.ipv6, data.port, &file->addr);// FIXME: network byte-order
+    err = sfs_net_connect(sfs, data.addr, data.port, &file->addr);// FIXME: network byte-order
     if (err < 0)
         return err;
-    printf("connect ok\n");
 
+    // preallocate buffer
+    if (strcmp(data.magic, "satu")) {
+        file->bhead = data.head;
+        file->btail = data.tail;
+    }
+    err = sfs_file_truncate(sfs, file, sizeof(data) + data.buffer_size);
+    if (err < 0)
+        return err;
+
+    // switch wmode
     file->wmode = wmode;
     return 0;
 }
@@ -1503,7 +1540,7 @@ static int sfs_file_flush(sfs_t *sfs, sfs_file_t *file) {
                 return res;
             }
 
-            res = sfs_file_write(sfs, file, &data, 1);
+            res = sfs_file_raw_write(sfs, file, &data, 1);
             if (res < 0) {
                 return res;
             }
@@ -1640,7 +1677,7 @@ sfs_ssize_t sfs_file_read(sfs_t *sfs, sfs_file_t *file,
     return size;
 }
 
-sfs_ssize_t sfs_file_raw_write(sfs_t *sfs, sfs_file_t *file,
+static sfs_ssize_t sfs_file_raw_write(sfs_t *sfs, sfs_file_t *file,
         const void *buffer, sfs_size_t size) {
     const uint8_t *data = buffer;
     sfs_size_t nsize = size;
@@ -1667,7 +1704,7 @@ sfs_ssize_t sfs_file_raw_write(sfs_t *sfs, sfs_file_t *file,
         file->pos = file->size;
 
         while (file->pos < pos) {
-            sfs_ssize_t res = sfs_file_write(sfs, file, &(uint8_t){0}, 1);
+            sfs_ssize_t res = sfs_file_raw_write(sfs, file, &(uint8_t){0}, 1);
             if (res < 0) {
                 return res;
             }
@@ -1739,10 +1776,91 @@ relocate:
     return size;
 }
 
-sfs_ssize_t sfs_file_stream_write(sfs_t *sfs, sfs_file_t *file,
-                                  const void *buffer, sfs_size_t size)
+static int sfs_stream_try_clear_buffer(sfs_t *sfs, sfs_file_t *file)
 {
-    return sfs_net_send(sfs, file->addr, buffer, size);
+    int res, total=0;
+    if (file->btail == file->bhead) {
+        return 0;
+    } else if (file->btail < file->bhead) {
+        // FIXME: WTF?  Maybe overflow...
+        file->head = 0;
+        goto commit;
+    } else {
+        char buf[256], c;
+        while (file->btail - file->bhead > 256) {
+            res = sfs_file_read(sfs, file, buf, sizeof(buf));
+            if (res < 0)
+                return res;
+            res = sfs_net_send_reliably(sfs, file->addr, buf, res);
+            if (res < 0)
+                return res;
+            total += res;
+            file->bhead += res;
+        }
+
+        while (file->btail < file->bhead) {
+            res = sfs_file_read(sfs, file, &c, 1);
+            if (res < 0)
+                return res;
+            res = sfs_net_send_reliably(sfs, file->addr, &c, 1);
+            if (res < 0)
+                return res;
+            total += 1;
+            file->bhead += 1;
+        }
+        goto commit;
+    }
+
+commit:
+    sfs_file_seek(sfs, file, offsetof(sfs_stream_info_t, head), SFS_SEEK_CUR);
+    sfs_file_raw_write(sfs, file, &file->bhead, sizeof(file->bhead));
+    return total;
+}
+
+static int sfs_stream_stash(sfs_t *sfs, sfs_file_t *file,
+                            const char *buffer, sfs_size_t size)
+{
+    int nwritten=0, res;
+
+    sfs_file_seek(sfs, file, file->btail, SFS_SEEK_SET);
+    while (file->btail - file->bhead > sfs->cfg->prog_size) {
+        res = sfs_file_raw_write(sfs, file, buffer+nwritten, size-nwritten);
+        if (res < 0)
+            goto commit;
+        file->btail += res;
+    }
+    res=0;
+commit:
+    sfs_file_seek(sfs, file, offsetof(sfs_stream_info_t, tail), SFS_SEEK_SET);
+    sfs_file_raw_write(sfs, file, &file->btail, sizeof(file->btail));
+    return res;
+}
+
+sfs_ssize_t sfs_file_stream_write(sfs_t *sfs, sfs_file_t *file,
+                                  const char *buffer, sfs_size_t size)
+{
+    int nsend;
+
+    // try to send buffered data
+    while ((nsend = sfs_stream_try_clear_buffer(sfs, file)) > 0);
+    if (nsend < 0) {
+        return nsend;
+    }
+
+    // send all
+    if ((nsend = sfs_net_send_reliably(sfs, file->addr, buffer, size)) < 0) {
+        puts("send_reliably failed!!!");
+        if (nsend != SFS_ERR_TIMEDOUT) {
+            return nsend;
+        }
+    }
+    if (nsend == SFS_ERR_TIMEDOUT) {
+        nsend = 0;
+    }
+    if (nsend < (long) size) {
+        sfs_stream_stash(sfs, file, buffer+nsend, size-nsend);
+    }
+    return size;
 }
 
 sfs_ssize_t sfs_file_write(sfs_t *sfs, sfs_file_t *file,
@@ -1817,7 +1935,7 @@ int sfs_file_truncate(sfs_t *sfs, sfs_file_t *file, sfs_off_t size) {
 
         // fill with zeros
         while (file->pos < size) {
-            sfs_ssize_t res = sfs_file_write(sfs, file, &(uint8_t){0}, 1);
+            sfs_ssize_t res = sfs_file_raw_write(sfs, file, &(uint8_t){0}, 1);
             if (res < 0) {
                 return res;
             }
@@ -2245,19 +2363,6 @@ int sfs_mount(sfs_t *sfs, const struct sfs_config *cfg) {
          minor_version > SFS_DISK_VERSION_MINOR)) {
         SFS_ERROR("Invalid version %d.%d", major_version, minor_version);
         return SFS_ERR_INVAL;
-    }
-
-    // FIXME CODE FOR TESTING
-    {
-        int res;
-        sfs_addr_t addr = 0;
-
-        printf("Entering TESTING!!\n");
-        res = sfs_net_connect(sfs, HOST_IPV6, 54321, &addr);
-        printf("connect host %s, addr=%p\n", strerror(-res), addr);
-
-        res = sfs_net_send(sfs, addr, "hello from sfs.c\n", 17);
-        printf("send %s\n", strerror(res < 0 ? -res : 0));
     }
 
     return 0;

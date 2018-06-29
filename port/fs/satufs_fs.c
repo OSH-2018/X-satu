@@ -59,6 +59,8 @@ static int satufs_err_to_errno(ssize_t err)
         return -ENOSPC;
     case SFS_ERR_NOMEM:
         return -ENOMEM;
+    case SFS_ERR_TIMEDOUT:
+        return -ETIMEDOUT;
     default:
         return err;
     }
@@ -176,32 +178,20 @@ _dev_send(const struct sfs_config *c,
           sfs_size_t size)
 {
     (void) c;
-
     sock_udp_t *sock = addr;
-    sock_udp_ep_t remote;
-    char buf[256];
-
-    sock_udp_get_remote(sock, &remote);
-    printf("remote.port=%d\n", remote.port);
-
-    ipv6_addr_to_str(buf, (ipv6_addr_t *)&remote.addr, remote.port);
-    printf("remote.addr=%s\n", buf);
-
-    return sock_udp_send(addr, buffer, size, NULL);
+    return sock_udp_send(sock, buffer, size, NULL);
 }
 
 static int
 _dev_recv(const struct sfs_config *c,
           sfs_addr_t addr,
           void *buffer,
-          sfs_size_t size)
+          sfs_size_t maxlen,
+          uint32_t timeout)
 {
     (void) c;
-    (void) addr;
-    (void) buffer;
-    (void) size;
-
-    return 0;
+    sock_udp_t *sock = addr;
+    return sock_udp_recv(sock, buffer, maxlen, timeout, NULL);
 }
 
 static int prepare(satufs_desc_t *fs)
@@ -242,6 +232,7 @@ static int prepare(satufs_desc_t *fs)
 #if SATUFS_PROG_BUFFER_SIZE
     fs->config.prog_buffer = fs->prog_buf;
 #endif
+    fs->config.timeout = 1000;
 
     return mtd_init(fs->dev);
 }

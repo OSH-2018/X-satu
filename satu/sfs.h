@@ -80,6 +80,7 @@ enum sfs_error {
     SFS_ERR_INVAL    = -22,  // Invalid parameter
     SFS_ERR_NOSPC    = -28,  // No space left on device
     SFS_ERR_NOMEM    = -12,  // No more memory available
+    SFS_ERR_TIMEDOUT = -110, // Timed out
 };
 
 // File types
@@ -96,6 +97,15 @@ enum sfs_wmode {
     SFS_WMODE_MSG,
 };
 typedef enum sfs_wmode sfs_wmode_t;
+
+typedef struct {
+    char magic[4];
+    uint16_t port;
+    char addr[256];
+    uint32_t buffer_size;
+    uint32_t head;
+    uint32_t tail;
+} sfs_stream_info_t;
 
 // File open flags
 enum sfs_open_flags {
@@ -166,7 +176,8 @@ struct sfs_config {
     int (*recv)(const struct sfs_config *c,
                 sfs_addr_t addr,
                 void *buffer,
-                sfs_size_t size);
+                sfs_size_t maxlen,
+                uint32_t timeout);
 
     // Minimum size of a block read. This determines the size of read buffers.
     // This may be larger than the physical read size to improve performance
@@ -193,6 +204,9 @@ struct sfs_config {
     // The lookahead buffer requires only 1 bit per block so it can be quite
     // large with little ram impact. Should be a multiple of 32.
     sfs_size_t lookahead;
+
+    // Number of microseconds of connectivity check.
+    uint32_t timeout;
 
     // Optional, statically allocated read buffer. Must be read sized.
     void *read_buffer;
@@ -269,6 +283,9 @@ typedef struct sfs_file {
     sfs_cache_t cache;
     sfs_addr_t addr;
     sfs_wmode_t wmode;
+    sfs_size_t buffer_size;
+    sfs_off_t bhead;
+    sfs_off_t btail;
 } sfs_file_t;
 
 typedef struct sfs_dir {

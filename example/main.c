@@ -34,13 +34,14 @@ int main(void)
 
     // Create a test file.
     int fd = open("/send", O_CREAT|O_RDWR);
-    struct {
-        uint16_t port;
-        char ipv6[46];
-    } data;
+    satufs_stream_info_t data;
     memset(&data, 0, sizeof(data));
-    data.port = 54322;
-    strcpy(data.ipv6, HOST_IPV6);
+    strcpy(data.magic, "satu");
+    data.port = 54321;
+    strcpy(data.addr, HOST_IPV6);
+    data.buffer_size = 4096;
+    data.head = 0;
+    data.tail = 0;
     printf("Host IP address is %s\n", HOST_IPV6);
     write(fd, &data, sizeof(data));
 
