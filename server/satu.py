@@ -80,6 +80,8 @@ class Server:
         try:
             while True:
                 data, addr = self.udpsock.recvfrom(2048)
+                #self.udpsock.sendto(b'test', addr)
+                self.udpsock.sendto(bytes(chr(len(data)%128)+'\n', "ascii"), addr)
                 print('received: ', data, 'from', addr)
                 self.deal(data)
                 self.clients.get(addr).store(data)
