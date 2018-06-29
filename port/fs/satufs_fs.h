@@ -74,6 +74,16 @@ extern "C" {
 #endif
 /** @} */
 
+    enum {
+        SATU_SETMODE = ~0,
+    };
+
+    enum {
+        SATU_MODE_RAW,
+        SATU_MODE_STR,
+        SATU_MODE_MSG,
+    };
+
 /**
  * @brief   satufs descriptor for vfs integration
  */

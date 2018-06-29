@@ -262,7 +262,7 @@ static int sfs_net_connect(sfs_t *sfs, const char *ipv6_addr, uint16_t port, sfs
 
 __attribute_used__
 static int sfs_net_send(sfs_t *sfs, sfs_addr_t addr, const void *data, sfs_size_t len) {
-    printf("sfs_net_send: addr=%p\n", addr);
+    printf("sfs_net_send: addr=%p len=%u\n", addr, len);
     return sfs->cfg->send(sfs->cfg, addr, data, len);
 }
 
@@ -1395,6 +1395,37 @@ int sfs_file_close(sfs_t *sfs, sfs_file_t *file) {
     return err;
 }
 
+int sfs_file_set_mode(sfs_t *sfs, sfs_file_t *file, int wmode)
+{
+    int err;
+    struct {
+        uint16_t port;
+        char ipv6[46]; // IPv6 textual representation
+    } data;
+    
+    err = sfs_file_sync(sfs, file);
+    if (err < 0)
+        return err;
+
+    // connect to the server
+    err = sfs_file_seek(sfs, file, 0, SFS_SEEK_SET);
+    if (err < 0)
+        return err;
+    printf("seek ok\n");
+    err = sfs_file_read(sfs, file, &data, sizeof(data));
+    if (err < 0)
+        return err;
+    printf("read ok\n");
+    printf("sfs_file_set_mode: port=%d\n", data.port);
+    err = sfs_net_connect(sfs, data.ipv6, data.port, &file->addr);// FIXME: network byte-order
+    if (err < 0)
+        return err;
+    printf("connect ok\n");
+
+    file->wmode = wmode;
+    return 0;
+}
+
 static int sfs_file_relocate(sfs_t *sfs, sfs_file_t *file) {
 relocate:
     SFS_DEBUG("Bad block at %d", file->block);
@@ -1609,7 +1640,7 @@ sfs_ssize_t sfs_file_read(sfs_t *sfs, sfs_file_t *file,
     return size;
 }
 
-sfs_ssize_t sfs_file_real_write(sfs_t *sfs, sfs_file_t *file,
+sfs_ssize_t sfs_file_raw_write(sfs_t *sfs, sfs_file_t *file,
         const void *buffer, sfs_size_t size) {
     const uint8_t *data = buffer;
     sfs_size_t nsize = size;
@@ -1708,9 +1739,18 @@ relocate:
     return size;
 }
 
+sfs_ssize_t sfs_file_stream_write(sfs_t *sfs, sfs_file_t *file,
+                                  const void *buffer, sfs_size_t size)
+{
+    return sfs_net_send(sfs, file->addr, buffer, size);
+}
+
 sfs_ssize_t sfs_file_write(sfs_t *sfs, sfs_file_t *file,
         const void *buffer, sfs_size_t size) {
-    return sfs_file_real_write(sfs, file, buffer, size);
+    if (file->wmode == SFS_WMODE_STR)
+        return sfs_file_stream_write(sfs, file, buffer, size);
+    else
+        return sfs_file_raw_write(sfs, file, buffer, size);
 }
 
 sfs_soff_t sfs_file_seek(sfs_t *sfs, sfs_file_t *file,

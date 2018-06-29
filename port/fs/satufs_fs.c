@@ -458,6 +458,27 @@ static off_t _lseek(vfs_file_t *filp, off_t off, int whence)
     return satufs_err_to_errno(ret);
 }
 
+static int _fcntl(vfs_file_t *filp, int cmd, int arg)
+{
+    satufs_desc_t *fs = filp->mp->private_data;
+    sfs_file_t *fp = (sfs_file_t *)&filp->private_data.buffer;
+
+    mutex_lock(&fs->lock);
+
+    DEBUG("satufs: fcntl: filp=%p, fp=%p, cmd=%d, arg=%d\n",
+          (void *) filp, (void *)fp, cmd, arg);
+
+    int ret = sfs_file_set_mode(&fs->fs, fp, arg);
+    mutex_unlock(&fs->lock);
+
+    switch (cmd) {
+    case SATU_SETMODE:
+        return satufs_err_to_errno(ret);
+    default:
+        return -EINVAL;
+    }
+}
+
 static int _stat(vfs_mount_t *mountp, const char *restrict path, struct stat *restrict buf)
 {
     satufs_desc_t *fs = mountp->private_data;
@@ -591,6 +612,7 @@ static const vfs_file_ops_t satufs_file_ops = {
     .read = _read,
     .write = _write,
     .lseek = _lseek,
+    .fcntl = _fcntl,
 };
 
 static const vfs_dir_ops_t satufs_dir_ops = {

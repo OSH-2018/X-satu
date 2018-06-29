@@ -1,4 +1,6 @@
 #include <stdio.h>
+#include <unistd.h>
+#include <fcntl.h>
 
 #include "shell.h"
 #include "board.h"
@@ -30,6 +32,30 @@ int main(void)
     res = vfs_mount(&flash_mount);
     printf("mount %s\n", res < 0 ? "error" : "ok");
 
+    // Create a test file.
+    int fd = open("/send", O_CREAT|O_RDWR);
+    struct {
+        uint16_t port;
+        char ipv6[46];
+    } data;
+    memset(&data, 0, sizeof(data));
+    data.port = 54322;
+    strcpy(data.ipv6, HOST_IPV6);
+    printf("Host IP address is %s\n", HOST_IPV6);
+    write(fd, &data, sizeof(data));
+
+    // Test stream write.
+    res = fcntl(fd, SATU_SETMODE, SATU_MODE_STR);
+    if (res < 0)
+        printf("set mode failed: %s\n", strerror(-res));
+    else
+        printf("set mode succeeded!!\n");
+    char msg[] = "hello from your IoT device!\n";
+    int nbytes = write(fd, msg, strlen(msg));
+    if (nbytes < 0) {
+        printf("write to stream error: %s\n", strerror(-nbytes));
+    }
+    close(fd);
 
     // Start commandline.
     char line_buf[SHELL_DEFAULT_BUFSIZE];

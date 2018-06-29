@@ -89,6 +89,14 @@ enum sfs_type {
     SFS_TYPE_SUPERBLOCK = 0x2e,
 };
 
+// File working modes
+enum sfs_wmode {
+    SFS_WMODE_RAW,
+    SFS_WMODE_STR,
+    SFS_WMODE_MSG,
+};
+typedef enum sfs_wmode sfs_wmode_t;
+
 // File open flags
 enum sfs_open_flags {
     // open flags
@@ -259,6 +267,8 @@ typedef struct sfs_file {
     sfs_block_t block;
     sfs_off_t off;
     sfs_cache_t cache;
+    sfs_addr_t addr;
+    sfs_wmode_t wmode;
 } sfs_file_t;
 
 typedef struct sfs_dir {
@@ -375,6 +385,15 @@ int sfs_stat(sfs_t *sfs, const char *path, struct sfs_info *info);
 // Returns a negative error code on failure.
 int sfs_file_open(sfs_t *sfs, sfs_file_t *file,
         const char *path, int flags);
+
+// Set the working mode of a file
+//
+// This function changes the working mode of a file, that is
+// how file operations are interpreted.
+//
+// Returns a negative error code on failure.
+int sfs_file_set_mode(sfs_t *sfs, sfs_file_t *file,
+                      int wmode);
 
 // Close a file
 //
