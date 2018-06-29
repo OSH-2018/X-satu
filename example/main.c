@@ -17,9 +17,30 @@ static vfs_mount_t flash_mount = {
     .private_data = &fs_desc,
 };
 
+static int cmd_say(int argc, char **argv);
+
 static const shell_command_t shell_commands[] = {
+    { "say", "Send <message> to server.", cmd_say },
     { NULL, NULL, NULL }
 };
+
+int fd;
+
+static int cmd_say(int argc, char **argv)
+{
+    if (argc < 2) {
+        printf("usage: say <message>");
+        return -1;
+    }
+
+    int len = strlen(argv[1]);
+    int res = write(fd, argv[1], len);
+    if (res < 0) {
+        printf("error: %s\n", strerror(-res));
+        return -1;
+    }
+    return 0;
+}
 
 int main(void)
 {
@@ -33,7 +54,7 @@ int main(void)
     printf("mount %s\n", res < 0 ? "error" : "ok");
 
     // Create a test file.
-    int fd = open("/send", O_CREAT|O_RDWR);
+    fd = open("/send", O_CREAT|O_RDWR);
     satufs_stream_info_t data;
     memset(&data, 0, sizeof(data));
     strcpy(data.magic, "satu");
@@ -45,18 +66,26 @@ int main(void)
     printf("Host IP address is %s\n", HOST_IPV6);
     write(fd, &data, sizeof(data));
 
-    // Test stream write.
+    // Switch working mode to stream.
     res = fcntl(fd, SATU_SETMODE, SATU_MODE_STR);
     if (res < 0)
         printf("set mode failed: %s\n", strerror(-res));
     else
         printf("set mode succeeded!!\n");
+
+    // Write.
     char msg[] = "hello from your IoT device!\n";
     int nbytes = write(fd, msg, strlen(msg));
     if (nbytes < 0) {
         printf("write to stream error: %s\n", strerror(-nbytes));
     }
-    close(fd);
+
+    // Write again.
+    strcpy(msg, "good bye!\n");
+    nbytes = write(fd, msg, strlen(msg));
+    if (nbytes < 0) {
+        printf("write to stream error: %s\n", strerror(-nbytes));
+    }
 
     // Start commandline.
     char line_buf[SHELL_DEFAULT_BUFSIZE];

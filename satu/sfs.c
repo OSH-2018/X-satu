@@ -1776,6 +1776,24 @@ relocate:
     return size;
 }
 
+static sfs_ssize_t sfs_file_raw_read_circular(sfs_t *sfs, sfs_file_t *file,
+                                              void *buffer, sfs_size_t size,
+                                              sfs_size_t bound)
+{
+    // TODO
+    (void) bound;
+    return sfs_file_read(sfs, file, buffer, size);
+}
+
+static sfs_ssize_t sfs_file_raw_write_circular(sfs_t *sfs, sfs_file_t *file,
+                                               const void *buffer, sfs_size_t size,
+                                               sfs_size_t bound)
+{
+    // TODO
+    (void) bound;
+    return sfs_file_raw_write(sfs, file, buffer, size);
+}
+
 static int sfs_stream_try_clear_buffer(sfs_t *sfs, sfs_file_t *file)
 {
     int res, total=0;
@@ -1786,9 +1804,10 @@ static int sfs_stream_try_clear_buffer(sfs_t *sfs, sfs_file_t *file)
         file->head = 0;
         goto commit;
     } else {
-        char buf[256], c;
+        char buf[256];
+        sfs_file_seek(sfs, file, file->bhead, SFS_SEEK_SET);
         while (file->btail - file->bhead > 256) {
-            res = sfs_file_read(sfs, file, buf, sizeof(buf));
+            res = sfs_file_raw_read_circular(sfs, file, buf, sizeof(buf), file->buffer_size);
             if (res < 0)
                 return res;
             res = sfs_net_send_reliably(sfs, file->addr, buf, res);
@@ -1798,16 +1817,14 @@ static int sfs_stream_try_clear_buffer(sfs_t *sfs, sfs_file_t *file)
             file->bhead += res;
         }
 
-        while (file->btail < file->bhead) {
-            res = sfs_file_read(sfs, file, &c, 1);
-            if (res < 0)
-                return res;
-            res = sfs_net_send_reliably(sfs, file->addr, &c, 1);
-            if (res < 0)
-                return res;
-            total += 1;
-            file->bhead += 1;
-        }
+        res = sfs_file_raw_read_circular(sfs, file, buf, file->btail-file->bhead, file->buffer_size);
+        if (res < 0)
+            return res;
+        res = sfs_net_send_reliably(sfs, file->addr, buf, file->btail-file->bhead);
+        if (res < 0)
+            return res;
+        total += file->btail-file->bhead;
+        file->bhead = file->btail;
         goto commit;
     }
 
@@ -1820,15 +1837,20 @@ commit:
 static int sfs_stream_stash(sfs_t *sfs, sfs_file_t *file,
                             const char *buffer, sfs_size_t size)
 {
-    int nwritten=0, res;
+    int res;
+    unsigned nwritten = 0;
 
     sfs_file_seek(sfs, file, file->btail, SFS_SEEK_SET);
-    while (file->btail - file->bhead > sfs->cfg->prog_size) {
-        res = sfs_file_raw_write(sfs, file, buffer+nwritten, size-nwritten);
+    while (nwritten < size) {
+        // FIXME this will overflow
+        res = sfs_file_raw_write_circular(sfs, file, buffer+nwritten, size-nwritten, file->buffer_size);
         if (res < 0)
             goto commit;
+        printf("stash: res=%d\n", res);
         file->btail += res;
+        nwritten += res;
     }
+
     res=0;
 commit:
     sfs_file_seek(sfs, file, offsetof(sfs_stream_info_t, tail), SFS_SEEK_SET);
@@ -1844,6 +1866,7 @@ sfs_ssize_t sfs_file_stream_write(sfs_t *sfs, sfs_file_t *file,
     // try to send buffered data
     while ((nsend = sfs_stream_try_clear_buffer(sfs, file)) > 0);
     if (nsend < 0) {
+        puts("clear buffer failed!!!");
         return nsend;
     }
 
@@ -1859,6 +1882,7 @@ sfs_ssize_t sfs_file_stream_write(sfs_t *sfs, sfs_file_t *file,
     }
     if (nsend < (long) size) {
         sfs_stream_stash(sfs, file, buffer+nsend, size-nsend);
+        printf("stashed data (len=%d) %sbhead=%d, btail=%d\n", size-nsend, buffer+nsend, file->bhead, file->btail);
     }
     return size;
 }

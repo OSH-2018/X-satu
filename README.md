@@ -10,7 +10,9 @@ and any use.
 
 ## Features
 
-(Temporarily) None.
+* File system running on low resources.
+* Send stream data to a remote server.
+* Buffer stream data when disconnected.
 
 ## Structure
 
