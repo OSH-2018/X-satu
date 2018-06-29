@@ -4,6 +4,7 @@ import sys
 import socket
 import json
 import datetime as dt
+import multiprocessing as mp
 
 
 class ClientManager:
@@ -83,11 +84,19 @@ class Server:
 
 
 def main(args):
-    config = {}
+    config = []
+    processes = []
     with open('config.json', 'r') as f:
         config = json.load(f)
-    server = Server(config)
-    server.run()
+        #pool = ThreadPool(len(config))
+        for line in config:
+            server = Server(line)
+            pro = mp.Process(target=server.run)
+            print(line)
+            processes.append(pro)
+        
+        for p in processes:
+            p.start()
 
 if __name__ == '__main__':
     main(sys.argv)
