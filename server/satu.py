@@ -5,6 +5,8 @@ import socket
 import json
 import datetime as dt
 import multiprocessing as mp
+import tkinter as tk
+from tkinter import messagebox
 
 
 class ClientManager:
@@ -23,7 +25,7 @@ class ClientManager:
     def close(self):
         for client in self.clients:
             client.close()
-        clients = {}
+        self.clients = {}
 
     def ename(self, addr):
         # format the filename by format string in json
@@ -64,6 +66,7 @@ class Client:
 class Server:
     def __init__(self, config):
         self.clients = ClientManager(config)
+        self.config = config
         self.udpsock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.udpsock.bind((config['addr'], config['port']))
 
@@ -78,9 +81,22 @@ class Server:
             while True:
                 data, addr = self.udpsock.recvfrom(2048)
                 print('received: ', data, 'from', addr)
+                self.deal(data)
                 self.clients.get(addr).store(data)
         except KeyboardInterrupt:
             exit(0)
+    
+    def deal(self, data):
+        """the function user use to deal with data"""
+        if 'up' in self.config:
+            try:
+                if int(data) >= self.config['up']:
+                    root = tk.Tk()
+                    root.withdraw()
+                    messagebox.showinfo('warning', 'temperature too high!')
+                    print("warning! temperature too high!")
+            except ValueError:
+                print("please enter a number!")
 
 
 def main(args):
@@ -92,7 +108,6 @@ def main(args):
         for line in config:
             server = Server(line)
             pro = mp.Process(target=server.run)
-            print(line)
             processes.append(pro)
         
         for p in processes:
