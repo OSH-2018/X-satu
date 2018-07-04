@@ -1,0 +1,7 @@
+digraph G {
+	"RIOT network" -> "Port";
+	"RIOT MTD" -> "Port";
+	"..." -> "Port";
+	"Port" -> "App";
+	"Port" -> "RIOT VFS" -> "App";
+}
