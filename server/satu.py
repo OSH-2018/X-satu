@@ -1,31 +1,22 @@
-#!/usr/bin/env python3
+#/usr/bin/env python3
 
+import asyncio
 import sys
-import socket
 import json
 import datetime as dt
-import multiprocessing as mp
+import multiprocess as mp
 import tkinter as tk
 from tkinter import messagebox
 
-
-class ClientManager:
-    def __init__(self, config):
-        self.format = 'stream'
-        self.clients = {}
+class ServerProtocol:
+    def __init__(self, config, deal):
         self.config = config
+        self.stream_file = None
+        self.format = 'stream'
+        self.deal = deal
 
-    def get(self, addr):
-        self.format = self.ename(addr)
-        if addr not in self.clients:
-            client = Client(addr, self.format)
-            self.clients[addr] = client
-        return self.clients[addr]
-
-    def close(self):
-        for client in self.clients:
-            client.close()
-        self.clients = {}
+    def connection_made(self, transport):
+        self.transport = transport
 
     def ename(self, addr):
         # format the filename by format string in json
@@ -43,63 +34,54 @@ class ClientManager:
             name += parts[i][1:]
         return name
 
-
-class Client:
-    def __init__(self, addr, format):
-        self.addr = addr
-        self.format = format
-        self.stream_file = None
-
     def get_stream_file(self):
         if self.stream_file:
             return self.stream_file
         self.stream_file = open(self.format, 'ab', buffering=0)
         return self.stream_file
 
-    def store(self, data):
+    def datagram_received(self, data, addr):
+        self.format = self.ename(addr)
+        #message = data.decode()
+        self.deal(self.config, data)
+        ret = bytes(chr(len(data)%128)+'\n', "ascii")
+        self.transport.sendto(ret, addr)
+
+        print('Received %r from %s' % (data, addr))
         self.get_stream_file().write(data)
 
-    def close(self):
-        self.stream_file.close()
-
-
 class Server:
-    def __init__(self, config):
-        self.clients = ClientManager(config)
-        self.config = config
-        self.udpsock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        self.udpsock.bind((config['addr'], config['port']))
+    def __init__(self, config, deal):
+        self.loop = asyncio.get_event_loop()
+        self.listen = self.loop.create_datagram_endpoint(lambda: ServerProtocol(config, deal), local_addr=(config['addr'], config['port']))
+        self.transport, self.protocol = self.loop.run_until_complete(self.listen)
 
     def __enter__(self):
+        print("Starting UDP server")
         return self
 
     def __exit__(self, exc_type, exc_value, traceback):
-        self.clients.close()
+        self.transport.close()
+        self.loop.close()
+    # One protocol instance will be created to serve all client requests
 
     def run(self):
         try:
-            while True:
-                data, addr = self.udpsock.recvfrom(2048)
-                #self.udpsock.sendto(b'test', addr)
-                self.udpsock.sendto(bytes(chr(len(data)%128)+'\n', "ascii"), addr)
-                print('received: ', data, 'from', addr)
-                self.deal(data)
-                self.clients.get(addr).store(data)
+            self.loop.run_forever()
         except KeyboardInterrupt:
-            exit(0)
-    
-    def deal(self, data):
-        """the function user use to deal with data"""
-        if 'up' in self.config:
-            try:
-                if int(data) >= self.config['up']:
-                    root = tk.Tk()
-                    root.withdraw()
-                    messagebox.showinfo('warning', 'temperature too high!')
-                    print("warning! temperature too high!")
-            except ValueError:
-                print("please enter a number!")
+            pass
 
+def demo(config, data):
+    """the function user use to deal with data"""
+    if 'up' in config:
+        try:
+            if int(data) >= config['up']:
+                root = tk.Tk()
+                root.withdraw()
+                messagebox.showinfo('warning', 'temperature too high!')
+                print("warning! temperature too high!")
+        except ValueError:
+            print("please enter a number!")
 
 def main(args):
     config = []
@@ -108,7 +90,7 @@ def main(args):
         config = json.load(f)
         #pool = ThreadPool(len(config))
         for line in config:
-            server = Server(line)
+            server = Server(line, demo)
             pro = mp.Process(target=server.run)
             processes.append(pro)
         
