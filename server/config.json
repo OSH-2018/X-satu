@@ -1,11 +1,11 @@
 [{
 	"port": 54321,
 	"addr": "0.0.0.0",
-	"format": "stream-%T-%@,%#"
+	"format": "stream-%d-%@,%#"
 },
 {
 	"port": 54322,
 	"addr": "0.0.0.0",
-	"format": "msg-%T-%@,%#",
+	"format": "msg-%d-%@,%#",
 	"up": 56
 }]
